@@ -241,7 +241,9 @@ class SeleniumCoursera:
             pass
             # print('Folder: ' + folder + '. Already created.')
 
-courses = ['open-source-tools-for-data-science', 'data-science-methodology', 'python-for-applied-data-science', 'sql-data-science', 'data-analysis-with-python', 'python-for-data-visualization', 'machine-learning-with-python', 'applied-data-science-capstone']
+
+with open('courses.json') as json_file:
+    courses = json.load(json_file)
 
 driver = webdriver.Chrome("./chromedriver")
 subdriver = webdriver.Chrome("./chromedriver")
