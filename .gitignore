@@ -102,3 +102,8 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+chromedriver
+temp/
+.vscode/
+.DS_Store
