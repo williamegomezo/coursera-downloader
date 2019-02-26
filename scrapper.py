@@ -179,15 +179,18 @@ class SeleniumCoursera:
                 print(folder_name)
                 items = title.find_elements_by_tag_name('li')
                 for j, item in enumerate(items):
-                    item_type = item.find_element_by_tag_name('strong').text
-                    if "Video:" in item_type:
-                        name = item.find_element_by_class_name(
-                            'rc-WeekItemName').text
-                        href = item.find_element_by_tag_name(
-                            'a').get_attribute('href')
-                        name = str(j) + '_' + self.format_name(name)
-                        self.download_video(course, str(
-                            week), folder_name, name, href)
+                    try:
+                        item_type = item.find_element_by_tag_name('strong').text
+                        if "Video:" in item_type:
+                            name = item.find_element_by_class_name(
+                                'rc-WeekItemName').text
+                            href = item.find_element_by_tag_name(
+                                'a').get_attribute('href')
+                            name = str(j) + '_' + self.format_name(name)
+                            self.download_video(course, str(
+                                week), folder_name, name, href)
+                    except:
+                        pass
             week += 1
 
     @staticmethod
