@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import wget
 import ssl
 from page_utils import wait_for
+from urllib.parse import parse_qs
 
 load_dotenv()
 
@@ -85,6 +86,16 @@ class SeleniumCoursera:
     def week_loaded(self):
         try:
             self.driver.find_element_by_class_name('rc-NamedItemList')
+            if self.driver.current_url.split('/')[-1] == str(self.week):
+                return True
+            else:
+                return False
+        except:
+            return False
+
+    def video_loaded(self):
+        try:
+            self.subdriver.find_element_by_id('c-video_html5_api')
             return True
         except:
             return False
@@ -154,10 +165,12 @@ class SeleniumCoursera:
         self.create_folder('downloads')
         has_week = True
         week = 1
+        self.week = week
 
         week_base = '/home/week/'
         while(has_week):
-            self.driver.get(self.coursera_base + course + week_base + str(week))
+            self.driver.get(self.coursera_base +
+                            course + week_base + str(week))
             try:
                 wait_for(self.week_loaded, self.timeout)
             except:
@@ -180,7 +193,8 @@ class SeleniumCoursera:
                 items = title.find_elements_by_tag_name('li')
                 for j, item in enumerate(items):
                     try:
-                        item_type = item.find_element_by_tag_name('strong').text
+                        item_type = item.find_element_by_tag_name(
+                            'strong').text
                         if "Video:" in item_type:
                             name = item.find_element_by_class_name(
                                 'rc-WeekItemName').text
@@ -192,48 +206,60 @@ class SeleniumCoursera:
                     except:
                         pass
             week += 1
+            self.week += 1
 
     @staticmethod
     def format_name(name):
         return name.replace(':', '_').replace('?', '').replace('\n', '_').replace('-', '_').replace('/', '_')
 
     def download_video(self, course, week, folder_name, video, href):
-        self.subdriver_change(href)
-        time.sleep(self.timeout)
-        resources = None
-        dropdown = None
+        self.subdriver.get(href)
         try:
-            dropdown = self.subdriver.find_element_by_class_name('rc-DownloadsDropdown')
+            wait_for(self.video_loaded, self.timeout)
+        except:
+            return False
+        video_links = []
+        subtitles_links = []
+        try:
+            video_element = self.subdriver.find_element_by_id(
+                'c-video_html5_api')
+            video_links = video_element.find_elements_by_tag_name('source')
         except:
             pass
         try:
-            resources = self.subdriver.find_element_by_class_name('resources-list')
+            video_element = self.subdriver.find_element_by_id(
+                'c-video_html5_api')
+            subtitles_links = video_element.find_elements_by_tag_name('track')
         except:
             pass
 
-        if resources != None:
-            links = resources.find_elements_by_tag_name('a')
-            for link in links:
-                self.save_resource(course, week, folder_name, video, link)
-
-        if dropdown != None:
-            links = dropdown.find_elements_by_tag_name('a')
-            for link in links:
-                self.save_resource(course, week, folder_name, video, link)
+        if len(video_links) > 0:
+            for link in video_links:
+                extension = link.get_attribute('type').split('/')[-1]
+                href = link.get_attribute('src')
+                self.save_resource(course, week, folder_name,
+                                   video + '.' + extension, href)
+        if len(subtitles_links) > 0:
+            for link in subtitles_links:
+                qs = parse_qs(link.get_attribute('src'))
+                extension = qs['fileExtension'][0]
+                language = link.get_attribute('label')
+                href = link.get_attribute('src')
+                self.save_resource(course, week, folder_name,
+                                   video + '_' + language + '.' + extension, href)
 
     def save_resource(self, course, week, folder_name, resource, link):
         self.create_folder('downloads/' + course)
         self.create_folder('downloads/' + course + '/' + week)
-        self.create_folder('downloads/' + course + '/' + week + '/' + folder_name)
-
-        extension = link.find_element_by_class_name('caption-text').get_attribute('innerHTML')
-        if (extension == 'WebVTT'):
-            extension = 'vtt'
+        self.create_folder('downloads/' + course + '/' +
+                           week + '/' + folder_name)
 
         ssl._create_default_https_context = ssl._create_unverified_context
-        print('Downloading: ', 'downloads/' + course + '/' + week + '/' + folder_name + '/' + resource + '.' + extension)
+        print('Downloading: ', 'downloads/' + course + '/' + week +
+              '/' + folder_name + '/' + resource)
         print('')
-        wget.download(link.get_attribute('href'), 'downloads/' + course + '/' + week + '/' + folder_name + '/' + resource + '.' + extension)
+        wget.download(link, 'downloads/' + course +
+                      '/' + week + '/' + folder_name + '/' + resource)
         print('')
 
     @staticmethod
@@ -250,7 +276,7 @@ with open('courses.json') as json_file:
 
 driver = webdriver.Chrome("./chromedriver")
 subdriver = webdriver.Chrome("./chromedriver")
-coursera = SeleniumCoursera(driver, subdriver, timeout=20)
+coursera = SeleniumCoursera(driver, subdriver, timeout=60)
 
 EMAIL = getenv("EMAIL")
 PASSWORD = getenv("PASSWORD")
